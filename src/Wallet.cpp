@@ -1,144 +1,113 @@
 #include "Wallet.h"
+#include <stdexcept> // For std::invalid_argument
 
-
-Wallet::Wallet()
-{
+Wallet::Wallet() {
+    // Constructor with no initial content, the wallet starts empty.
 }
 
-void Wallet::insertCurrency(std::string type, double amount)
+void Wallet::insertCurrency(const std::string& type, double amount)
 {
-    double balance;
-    // check if the amount is a negative number
     if (amount < 0)
     {
-        throw std::exception{};
+        throw std::invalid_argument("Cannot insert a negative amount of currency.");
     }
-    // initializing this currency if it isn't exist in the wallet after checking 
+
+    // If the currency doesn't exist in the wallet, initialize it with zero balance.
     if (currencies.count(type) == 0)
     {
-        balance = 0;
+        currencies[type] = 0;
     }
-    else
-    {
-        balance = currencies[type];
-    }
-    balance += amount;
-    currencies[type] = balance;
+
+    currencies[type] += amount; // Add the specified amount to the currency balance.
 }
 
-bool Wallet::removeCurrency(std::string type, double amount) 
+bool Wallet::removeCurrency(const std::string& type, double amount)
 {
-    double balance;
-    // check if the amount wanted to remove is a negative(it's adding)
     if (amount < 0)
     {
-        throw std::exception{};
+        throw std::invalid_argument("Cannot remove a negative amount of currency.");
     }
-    // check if the currency is already exist
+
+    // Check if the currency exists in the wallet.
     if (currencies.count(type) == 0)
     {
-        std::cout << "No currency here for " << type << std::endl;
-        return false; // nothing in the wallet
+        std::cout << "No currency available for " << type << std::endl;
+        return false; // Currency not found in wallet.
+    }
+
+    // Check if there is enough currency to remove.
+    if (containsCurrency(type, amount))
+    {
+        currencies[type] -= amount;
+        return true; // Successfully removed the currency.
     }
     else
     {
-        if (containsCurrency(type, amount)) // we have enough
-        {
-            // std::cout << "Removing .." << type << " : " << amount << std::endl;
-            currencies[type] -= amount;
-            return true;
-        }
-        else // they have it but not enough
-            {
-                std::cout << "Not enough balance to remove." << std::endl;
-                return false;
-            }
+        std::cout << "Not enough balance to remove." << std::endl;
+        return false; // Not enough funds.
     }
-    balance += amount;
-    currencies[type] = balance;
 }
 
-bool Wallet::containsCurrency(std::string type, double amount)
+bool Wallet::containsCurrency(const std::string& type, double amount)
 {
-    if (currencies.count(type) == 0)
-        return false;
-    else
-        return currencies[type] >= amount;
-
-    return false;
+    return currencies.count(type) > 0 && currencies[type] >= amount;
 }
 
-std::string Wallet::toString()
+std::string Wallet::toString() const
 {
-    std::string s;
-    for (std::pair<std::string, double> pair : currencies)
+    std::string result;
+    for (const auto& pair : currencies)
     {
-        std::string currency = pair.first;
-        double amount = pair.second;
-        s += currency + " : " + std::to_string(amount) + "\n";
+        result += pair.first + " : " + std::to_string(pair.second) + "\n";
     }
-
-    return s;
+    return result;
 }
 
-
-
-
-
-
-
-bool Wallet::canFulfillOrder(OrderBookEntry order)
+bool Wallet::canFulfillOrder(const OrderBookEntry& order)
 {
-    // vector contains the 2 product curruncies
     std::vector<std::string> currs = CSVReader::tokenise(order.product, '/');
-    double amount;
+    double requiredAmount = 0.0; // Initialize the variable
     std::string currency;
-    //ask
+
+    // Check for ask order type
     if (order.orderType == OrderBookType::ask)
     {
-        amount = order.amount;
+        requiredAmount = order.amount;
         currency = currs[0];
     }
-    if (order.orderType == OrderBookType::bid)
+    // Check for bid order type
+    else if (order.orderType == OrderBookType::bid)
     {
         currency = currs[1];
-        amount = order.amount * order.price;
+        requiredAmount = order.amount * order.price;
     }
-    return containsCurrency(currency, amount);
 
-    return false;
+    // Ensure we have enough of the currency
+    return containsCurrency(currency, requiredAmount);
 }
 
-void Wallet::processSale(OrderBookEntry &sale)
+void Wallet::processSale(OrderBookEntry& sale)
 {
-    // vector contains the 2 product curruncies
     std::vector<std::string> currs = CSVReader::tokenise(sale.product, '/');
 
-    //ask
     if (sale.orderType == OrderBookType::asksale)
     {
-        double outGoingAmount = sale.amount;
-        std::string outGoingCurrency = currs[0];
-        double inComingAmount = sale.amount * sale.price;
-        std::string inComingCurrency = currs[1];
+        double outgoingAmount = sale.amount;
+        std::string outgoingCurrency = currs[0];
+        double incomingAmount = sale.amount * sale.price;
+        std::string incomingCurrency = currs[1];
 
-        //update the wallet currencies content
-        currencies[inComingCurrency] += inComingAmount;
-        currencies[outGoingCurrency] -= outGoingAmount;
+        currencies[incomingCurrency] += incomingAmount;
+        currencies[outgoingCurrency] -= outgoingAmount;
     }
-
-    //bid
-    if (sale.orderType == OrderBookType::bidsale)
+    else if (sale.orderType == OrderBookType::bidsale)
     {
-        double inComingAmount = sale.amount;
-        std::string inComingCurrency = currs[0];
-        double outGoingAmount = sale.amount * sale.price;
-        std::string outGoingCurrency = currs[1];
+        double incomingAmount = sale.amount;
+        std::string incomingCurrency = currs[0];
+        double outgoingAmount = sale.amount * sale.price;
+        std::string outgoingCurrency = currs[1];
 
-        //update the wallet currencies content
-        currencies[inComingCurrency] += inComingAmount;
-        currencies[outGoingCurrency] -= outGoingAmount;
+        currencies[incomingCurrency] += incomingAmount;
+        currencies[outgoingCurrency] -= outgoingAmount;
     }
-   
-
 }
