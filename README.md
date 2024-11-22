@@ -41,8 +41,8 @@ An interactive console interface with options to:
 
 ### Clone the repository:
 ```bash
-git clone https://github.com/a-moatamed/trade-platform.git
-cd trade-platform
+git clone https://github.com/a-moatamed/Merkel.git
+cd Merkel
 ```
 # Build and Run the Project
 
